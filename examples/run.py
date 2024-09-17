@@ -31,6 +31,7 @@ from tensorrt_llm.runtime import PYTHON_BINDINGS, ModelRunner
 if PYTHON_BINDINGS:
     from tensorrt_llm.runtime import ModelRunnerCpp
 
+torch.manual_seed(1234)
 
 def parse_arguments(args=None):
     parser = argparse.ArgumentParser()
@@ -56,7 +57,7 @@ def parse_arguments(args=None):
         '--input_text',
         type=str,
         nargs='+',
-        default=["Born in north-east France, Soyer trained as a"])
+        default=["Hello, my name is"])
     parser.add_argument(
         '--no_prompt_template',
         dest='use_prompt_template',
@@ -371,6 +372,7 @@ def main(args):
     # bad_words_list = torch.Tensor(bad_words_list).to(torch.int32).to("cuda").contiguous()
     bad_words_list = None
 
+    
     prompt_template = None
     if args.use_prompt_template and model_name in DEFAULT_PROMPT_TEMPLATES:
         prompt_template = DEFAULT_PROMPT_TEMPLATES[model_name]
@@ -419,36 +421,42 @@ def main(args):
         )
     runner = runner_cls.from_dir(**runner_kwargs)
 
-    with torch.no_grad():
-        outputs = runner.generate(
-            batch_input_ids,
-            max_new_tokens=args.max_output_len,
-            max_attention_window_size=args.max_attention_window_size,
-            sink_token_length=args.sink_token_length,
-            end_id=end_id,
-            pad_id=pad_id,
-            temperature=args.temperature,
-            top_k=args.top_k,
-            top_p=args.top_p,
-            num_beams=args.num_beams,
-            length_penalty=args.length_penalty,
-            early_stopping=args.early_stopping,
-            repetition_penalty=args.repetition_penalty,
-            presence_penalty=args.presence_penalty,
-            frequency_penalty=args.frequency_penalty,
-            stop_words_list=stop_words_list,
-            bad_words_list=bad_words_list,
-            output_cum_log_probs=(args.output_cum_log_probs_npy != None),
-            output_log_probs=(args.output_log_probs_npy != None),
-            lora_uids=args.lora_task_uids,
-            prompt_table=args.prompt_table_path,
-            prompt_tasks=args.prompt_tasks,
-            streaming=args.streaming,
-            output_sequence_lengths=True,
-            return_dict=True,
-            medusa_choices=args.medusa_choices)
-        torch.cuda.synchronize()
-
+    import time
+    start = time.time()
+    for i in range(5):
+        start = time.time()
+        with torch.no_grad():
+            outputs = runner.generate(
+                batch_input_ids,
+                max_new_tokens=args.max_output_len,
+                max_attention_window_size=args.max_attention_window_size,
+                sink_token_length=args.sink_token_length,
+                end_id=end_id,
+                pad_id=pad_id,
+                temperature=args.temperature,
+                top_k=args.top_k,
+                top_p=args.top_p,
+                num_beams=args.num_beams,
+                length_penalty=args.length_penalty,
+                early_stopping=args.early_stopping,
+                repetition_penalty=args.repetition_penalty,
+                presence_penalty=args.presence_penalty,
+                frequency_penalty=args.frequency_penalty,
+                stop_words_list=stop_words_list,
+                bad_words_list=bad_words_list,
+                output_cum_log_probs=(args.output_cum_log_probs_npy != None),
+                output_log_probs=(args.output_log_probs_npy != None),
+                lora_uids=args.lora_task_uids,
+                prompt_table=args.prompt_table_path,
+                prompt_tasks=args.prompt_tasks,
+                streaming=args.streaming,
+                output_sequence_lengths=True,
+                return_dict=True,
+                medusa_choices=args.medusa_choices)
+            torch.cuda.synchronize()
+        end = time.time()
+        print(end - start)
+        print(f"Tokens/sec => {args.max_output_len/(end - start)}")
     if args.streaming:
         for curr_outputs in throttle_generator(outputs,
                                                args.streaming_interval):
