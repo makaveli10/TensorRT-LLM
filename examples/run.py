@@ -20,6 +20,7 @@ import os
 from pathlib import Path
 from typing import List, Optional
 
+import time
 import numpy as np
 import torch
 from utils import (DEFAULT_HF_MODEL_DIRS, DEFAULT_PROMPT_TEMPLATES,
@@ -52,7 +53,7 @@ def parse_arguments(args=None):
         '--input_text',
         type=str,
         nargs='+',
-        default=["Born in north-east France, Soyer trained as a"])
+        default=["Hello, my name is"])
     parser.add_argument(
         '--input_file',
         type=str,
@@ -482,48 +483,51 @@ def main(args):
             enable_context_fmha_fp32_acc=args.enable_context_fmha_fp32_acc)
         runner = runner_cls.from_dir(**runner_kwargs)
 
-        with torch.no_grad():
-            outputs = runner.generate(
-                batch_input_ids=decoder_input_ids
-                if is_enc_dec else batch_input_ids,
-                encoder_input_ids=encoder_input_ids if is_enc_dec else None,
-                encoder_input_features=encoder_input_features
-                if is_enc_dec else None,
-                encoder_output_lengths=encoder_output_lengths
-                if is_enc_dec else None,
-                max_new_tokens=args.max_output_len,
-                max_attention_window_size=args.max_attention_window_size,
-                sink_token_length=args.sink_token_length,
-                end_id=end_id,
-                pad_id=pad_id,
-                temperature=args.temperature,
-                top_k=args.top_k,
-                top_p=args.top_p,
-                num_beams=args.num_beams,
-                num_return_sequences=args.num_return_sequences,
-                length_penalty=args.length_penalty,
-                early_stopping=args.early_stopping,
-                repetition_penalty=args.repetition_penalty,
-                presence_penalty=args.presence_penalty,
-                frequency_penalty=args.frequency_penalty,
-                stop_words_list=stop_words_list,
-                bad_words_list=bad_words_list,
-                output_cum_log_probs=(args.output_cum_log_probs_npy != None),
-                output_log_probs=(args.output_log_probs_npy != None),
-                random_seed=args.random_seed,
-                lora_uids=args.lora_task_uids,
-                prompt_table=args.prompt_table_path,
-                prompt_tasks=args.prompt_tasks,
-                streaming=args.streaming,
-                output_sequence_lengths=True,
-                no_repeat_ngram_size=args.no_repeat_ngram_size,
-                return_dict=True,
-                medusa_choices=args.medusa_choices,
-                eagle_choices=args.eagle_choices,
-                return_all_generated_tokens=args.return_all_generated_tokens,
-                input_token_extra_ids=input_token_extra_ids)
-            torch.cuda.synchronize()
-
+        for i in range(5):
+            start = time.perf_counter()
+            with torch.no_grad():
+                outputs = runner.generate(
+                    batch_input_ids=decoder_input_ids
+                    if is_enc_dec else batch_input_ids,
+                    encoder_input_ids=encoder_input_ids if is_enc_dec else None,
+                    encoder_input_features=encoder_input_features
+                    if is_enc_dec else None,
+                    encoder_output_lengths=encoder_output_lengths
+                    if is_enc_dec else None,
+                    max_new_tokens=args.max_output_len,
+                    max_attention_window_size=args.max_attention_window_size,
+                    sink_token_length=args.sink_token_length,
+                    end_id=end_id,
+                    pad_id=pad_id,
+                    temperature=args.temperature,
+                    top_k=args.top_k,
+                    top_p=args.top_p,
+                    num_beams=args.num_beams,
+                    num_return_sequences=args.num_return_sequences,
+                    length_penalty=args.length_penalty,
+                    early_stopping=args.early_stopping,
+                    repetition_penalty=args.repetition_penalty,
+                    presence_penalty=args.presence_penalty,
+                    frequency_penalty=args.frequency_penalty,
+                    stop_words_list=stop_words_list,
+                    bad_words_list=bad_words_list,
+                    output_cum_log_probs=(args.output_cum_log_probs_npy != None),
+                    output_log_probs=(args.output_log_probs_npy != None),
+                    random_seed=args.random_seed,
+                    lora_uids=args.lora_task_uids,
+                    prompt_table=args.prompt_table_path,
+                    prompt_tasks=args.prompt_tasks,
+                    streaming=args.streaming,
+                    output_sequence_lengths=True,
+                    no_repeat_ngram_size=args.no_repeat_ngram_size,
+                    return_dict=True,
+                    medusa_choices=args.medusa_choices,
+                    eagle_choices=args.eagle_choices,
+                    return_all_generated_tokens=args.return_all_generated_tokens,
+                    input_token_extra_ids=input_token_extra_ids)
+                torch.cuda.synchronize()
+            end = time.perf_counter()
+            print(f"{200/(end-start)} tokens/s")
     # Receive output, print to screen or save to file
     if args.streaming:
         for curr_outputs in throttle_generator(outputs,
